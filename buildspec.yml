@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - npm install -g --silent --no-progress npm
+      - npm install -g --silent --no-progress serverless
+  pre_build:
+    commands:
+      - pip install -r $PWD/requirements.txt
+  build:
+    commands:
+      - mkdir -p target/dev
+      - serverless package --package target/dev --stage dev -v -r us-east-1
+    
+artifacts:
+  files:
+    - target/**/*
+    - serverless.yml
+    - deploy.sh
