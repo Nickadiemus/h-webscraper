@@ -14,13 +14,6 @@ Parameters:
         Description: S3 Bucket used for storing code artifacts.
 
 Resources:
-    # Code Commit Repo
-    CodeRepository:
-        Type: AWS::CodeCommit::Repository
-        Properties:
-            RepositoryName: !Sub "${ProjectName}"
-            RepositoryDescription: !Sub "Repository for the ${ProjectName} project"
-
     CodeBuildServiceRole:
         Type: AWS::IAM::Role
         Properties:
@@ -229,4 +222,4 @@ Resources:
 Outputs:
   Git:
     Description: The URL to use for cloning the repository over HTTPS
-    Value: !GetAtt CodeRepository.CloneUrlHttp
+    Value: https://github.com/Nickadiemus/zillow-webscraper
