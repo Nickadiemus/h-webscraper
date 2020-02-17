@@ -161,7 +161,7 @@ Resources:
           ArtifactStore: 
               Location: !Ref BuildArtifactsBucket
               Type: S3
-          Name: !Sub ${ProjectName}-pipeline-Dev
+          Name: !Sub ${ProjectName}-pipeline-dev
           RoleArn: !GetAtt PipelineExecutionRole.Arn
           Stages:
               - Name: Source
@@ -205,7 +205,7 @@ Resources:
                       RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                       StackName: !Sub '${ProjectName}-dev'
                       ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
-                      TemplatePath: BuiltZipDev::app-output-sam.yaml
+                      TemplatePath: BuiltZipDev::serverless.yml
                       Capabilities: CAPABILITY_IAM
                       ParameterOverrides: '{ "Environment": "dev" }'
                     InputArtifacts:
