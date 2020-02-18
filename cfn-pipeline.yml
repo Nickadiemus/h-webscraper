@@ -3,285 +3,416 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: zillow-webscraper
 
 Parameters:
-    ProjectName:
-        Type: String
-        Default: zillow-webscraper
-        Description: Name for the project, used in the code repository.
-    DeploymentBucket:
-        Type: String
-        Default: zillow-webscraper
-        Description: Bucket where the files will be deployed.
-    BuildArtifactsBucket:
-        Type: String
-        Default: zillow-webscraper-build-artifacts
-        Description: S3 Bucket used for storing code artifacts.
+  ProjectName:
+    Type: String
+    Default: zillow-webscraper
+    Description: Name for the project, used in the code repository.
+  DeploymentBucket:
+    Type: String
+    Default: zillow-webscraper
+    Description: Bucket where the files will be deployed.
+  BuildArtifactsBucket:
+    Type: String
+    Default: zillow-webscraper-build-artifacts
+    Description: S3 Bucket used for storing code artifacts.
 
-    # *** This value must always be passed in when creating / updating stack
-    # "NoEcho" is set to true, for security, so token won't be visible when examining the resulting stack
-    GitHubOAuthToken:
-      Type: String
-      NoEcho: true
-      MinLength: 40
-      MaxLength: 40
-      AllowedPattern: '[a-z0-9]*'
+  # *** This value must always be passed in when creating / updating stack
+  # "NoEcho" is set to true, for security, so token won't be visible when examining the resulting stack
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+    MinLength: 40
+    MaxLength: 40
+    AllowedPattern: "[a-z0-9]*"
 
-    # *** The remaining parameters should either be:
-    # - overridden via changing "Default" here (PREFERABLE, since then they're in source control)
-    # - or you can pass them in when creating / updating the stack
-    
-    # *** The owner of the Github repo for this application.
-    GitHubOwner:
-      Type: String
-      Default: nickadiemus
-      AllowedPattern: "[A-Za-z0-9-]+"
+  # *** The remaining parameters should either be:
+  # - overridden via changing "Default" here (PREFERABLE, since then they're in source control)
+  # - or you can pass them in when creating / updating the stack
 
-    GitHubRepo:
-      Type: String
-      Default: zillow-webscraper
-      AllowedPattern: "[A-Za-z0-9-]+"
+  # *** The owner of the Github repo for this application.
+  GitHubOwner:
+    Type: String
+    Default: nickadiemus
+    AllowedPattern: "[A-Za-z0-9-]+"
 
-    GitHubBranch:
-      Type: String
-      Default: dev
-      AllowedPattern: "[A-Za-z0-9-]+"
+  GitHubRepo:
+    Type: String
+    Default: zillow-webscraper
+    AllowedPattern: "[A-Za-z0-9-]+"
+
+  GitHubBranch:
+    Type: String
+    Default: dev
+    AllowedPattern: "[A-Za-z0-9-]+"
 
 Resources:
-    # Code Commit Repo
-    CodeRepository:
-        Type: AWS::CodeCommit::Repository
-        Properties:
-            RepositoryName: !Sub "${ProjectName}"
-            RepositoryDescription: !Sub "Repository for the ${ProjectName} project"
+  # Code Commit Repo
+  CodeRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}"
+      RepositoryDescription: !Sub "Repository for the ${ProjectName} project"
 
-    # 'GithubWebhook' satisfies two requirements:
-    # -- Means that updates are pushed from GitHub, rather than AWS having to poll
-    # -- Means we can filter for required changes
-    GithubWebhook:
-      Type: 'AWS::CodePipeline::Webhook'
-      Properties:
-        Authentication: GITHUB_HMAC
-        AuthenticationConfiguration:
-          SecretToken: !Ref GitHubOAuthToken
-        RegisterWithThirdParty: 'true'
-        Filters:
-        - JsonPath: "$.ref"
-          MatchEquals: refs/heads/{Branch}
-        TargetPipeline: !Ref CodePipeline
-        TargetAction: Source
-        TargetPipelineVersion: !GetAtt CodePipeline.Version
-
-    CodeBuildServiceRole:
-        Type: AWS::IAM::Role
-        Properties:
-            AssumeRolePolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                  - Action:
-                      - 'sts:AssumeRole'
-                    Effect: Allow
-                    Principal:
-                      Service:
-                        - codebuild.amazonaws.com
-            Path: /
-            Policies:
-                - PolicyName: CodeBuildAccess
-                  PolicyDocument:
-                    Version: '2012-10-17'
-                    Statement:
-                      - Effect: Allow
-                        Resource:
-                          - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-build'
-                          - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-build:*'
-                        Action:
-                          - 'logs:CreateLogGroup'
-                          - 'logs:CreateLogStream'
-                          - 'logs:PutLogEvents'
-                      - Effect: Allow
-                        Resource:
-                          - !Sub 'arn:aws:s3:::${BuildArtifactsBucket}/*'
-                          - !Sub 'arn:aws:s3:::${DeploymentBucket}/*'
-                        Action: 
-                          - 's3:GetObject'
-                          - 's3:GetObjectVersion'
-                          - 's3:PutObject'
-
-    CodeBuildProject:
-      Type: AWS::CodeBuild::Project
-      Properties:
-          Name: !Sub "${ProjectName}-build"
-          Description: Build project for the s3 static content deployment
-          Artifacts:
-              Location: !Ref BuildArtifactsBucket
-              Type: S3
-          Environment: 
-              Type: LINUX_CONTAINER
-              ComputeType: BUILD_GENERAL1_SMALL
-              Image: aws/codebuild/nodejs:8.11.0
-              EnvironmentVariables:
-                - Name: BUILD_OUTPUT_BUCKET
-                  Value: !Ref BuildArtifactsBucket
-          ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-          Source:
-            Auth:
-              Type: OAUTH
-            Location: https://github.com/Nickadiemus/zillow-webscraper
-            BuildSpec: buildspec.yml
-            Type: GITHUB
-          Triggers:
-              Webhook: true
-          TimeoutInMinutes: 10
-     
-    # CloudFormation role 
-    CloudFormationExecutionRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            Action: 
-              - 'sts:AssumeRole'
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
             Effect: Allow
             Principal:
               Service:
-                - cloudformation.amazonaws.com
-        Path: /
-        Policies:
-          - PolicyName: CloudFormationPolicy
-            PolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                - Action:
-                    - cloudfront:*
-                    - lambda:*
-                    - cloudformation:*
-                    - iam:*
-                  Effect: Allow
-                  Resource: '*'
-                - Action: 
-                    - 's3:GetObject'
-                  Effect: Allow
-                  Resource:
-                    - !Sub 'arn:aws:s3:::${BuildArtifactsBucket}/*'
+                - codebuild.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: CodeBuildDeployServerless
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:List*
+                  - cloudformation:Get*
+                  - cloudformation:ValidateTemplate
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:CreateUploadBucket
+                  - cloudformation:DeleteStack
+                  - cloudformation:Describe*
+                  - cloudformation:UpdateStack
+                Resource:
+                  - arn:aws:cloudformation:us-east-1:*:stack/zillow webscraper-dev/*
+              - Effect: Allow
+                Action:
+                  - lambda:Get*
+                  - lambda:List*
+                  - lambda:CreateFunction
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                  - s3:PutAccelerateConfiguration
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutEncryptionConfiguration
+                Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
+                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
+                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
+              - Effect: Allow
+                Action:
+                  - lambda:AddPermission
+                  - lambda:CreateAlias
+                  - lambda:DeleteFunction
+                  - lambda:InvokeFunction
+                  - lambda:PublishVersion
+                  - lambda:RemovePermission
+                  - lambda:Update*
+                Resource:
+                  - arn:aws:lambda:us-east-1:*:function:zillow webscraper-dev-*
+              - Effect: Allow
+                Action:
+                  - apigateway:GET
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:DELETE
+                  - apigateway:PATCH
+                Resource:
+                  - arn:aws:apigateway:*::/restapis*
+                  - arn:aws:apigateway:*::/apikeys*
+                  - arn:aws:apigateway:*::/usageplans*
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - arn:aws:iam::*:role/*
+              - Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:DeleteRole
+                Resource:
+                  - arn:aws:iam::*:role/zillow webscraper-dev-us-east-1-lambdaRole
+              - Effect: Allow
+                Action: sqs:*
+                Resource:
+                  - arn:aws:sqs:*:*:zillow webscraper-dev-us-east-1
+              - Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricStatistics
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-build-deploy'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-build-deploy:*'
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                
+              - Effect: Allow
+                Action:
+                  - logs:DescribeLogStreams
+                  - logs:DescribeLogGroups
+                  - logs:FilterLogEvents
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Action:
+                  - events:Put*
+                  - events:Remove*
+                  - events:Delete*
+                Resource:
+                  - arn:aws:events:*:*:rule/zillow webscraper-dev-us-east-1
+              - Effect: Allow
+                Action:
+                  - events:DescribeRule
+                Resource:
+                  - arn:aws:events:us-east-1:*:rule/zillow webscraper-dev-*
 
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-build"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-build:*"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+              - Effect: Allow
+                Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
+                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
+                Action:
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:PutObject"
 
-     # CodePipeline definition and role 
-    
-    PipelineExecutionRole:
-        Type: AWS::IAM::Role
-        Properties:
-            AssumeRolePolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                  - Action: 
-                    - 'sts:AssumeRole'
-                    Effect: Allow
-                    Principal:
-                      Service: 
-                        - codepipeline.amazonaws.com
-            Path: /
-            Policies:
-                - PolicyName: CodePipelineAccess
-                  PolicyDocument:
-                    Version: '2012-10-17'
-                    Statement:
-                        - Action:
-                            - iam:PassRole
-                            - codecommit:CancelUploadArchive
-                            - codecommit:GetBranch
-                            - codecommit:GetCommit
-                            - codecommit:GetUploadArchiveStatus
-                            - codecommit:UploadArchive
-                            - cloudformation:*
-                            - codebuild:BatchGetBuilds
-                            - codebuild:StartBuild
-                            - lambda:InvokeFunction
-                            - lambda:ListFunctions
-                          Effect: Allow
-                          Resource: '*'
-                        - Action: 
-                            - 's3:*'
-                          Effect: Allow
-                          Resource:
-                            - !Sub 'arn:aws:s3:::${BuildArtifactsBucket}/*'
-                            - !Sub 'arn:aws:s3:::${DeploymentBucket}/*'
-    
-    CodePipelineDev:
-        Type: AWS::CodePipeline::Pipeline
-        Properties:
-            ArtifactStore:
-                Type: S3
-                Location: !Sub BuildArtifactsBucket
-            RestartExecutionOnUpdate: true
-            RoleArn: !GetAtt CodePipelineRole.Arn
-            Stages:
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${ProjectName}-build"
+      Description: Build project for the s3 static content deployment
+      Artifacts:
+        Location: !Ref BuildArtifactsBucket
+        Type: S3
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/nodejs:8.11.0
+        EnvironmentVariables:
+          - Name: BUILD_OUTPUT_BUCKET
+            Value: !Ref BuildArtifactsBucket
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        Auth:
+          Type: OAUTH
+        Location: https://github.com/Nickadiemus/zillow-webscraper
+        BuildSpec: buildspec.yml
+        Type: GITHUB
+      Triggers:
+        Webhook: true
+      TimeoutInMinutes: 10
+
+  CodeBuildDeploy:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${ProjectName}-build-deploy"
+      Description: Deploys Serverless lambda
+      Artifacts:
+        Location: !Ref BuildArtifactsBucket
+        Type: S3
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/nodejs:8.11.0
+        EnvironmentVariables:
+          - Name: env
+            Value: dev
+      ServiceRole: !GetAtt CodeDeployServiceRole.Arn
+      Source:
+        Type: S3
+        Location: !Ref BuildArtifactsBucket
+      Triggers:
+        Webhook: true
+      TimeoutInMinutes: 10
+
+  # CloudFormation role
+  CloudFormationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action:
+            - "sts:AssumeRole"
+          Effect: Allow
+          Principal:
+            Service:
+              - cloudformation.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: CloudFormationPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - cloudfront:*
+                  - lambda:*
+                  - cloudformation:*
+                  - iam:*
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - "s3:GetObject"
+                Effect: Allow
+                Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
+
+    # CodePipeline definition and role
+
+  PipelineExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - iam:PassRole
+                  - codecommit:CancelUploadArchive
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+                  - cloudformation:*
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - lambda:InvokeFunction
+                  - lambda:ListFunctions
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - "s3:*"
+                Effect: Allow
+                Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
+                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
+
+  CodePipelineDev:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref BuildArtifactsBucket
+      RestartExecutionOnUpdate: true
+      RoleArn: !GetAtt PipelineExecutionRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
             - Name: Source
-              Actions:
-              - Name: Source
-                InputArtifacts: []
-                ActionTypeId:
-                  Category: Source
-                  Owner: ThirdParty
-                  Version: 1
-                  Provider: GitHub
-                OutputArtifacts:
-                - Name: SourceCode
-                Configuration:
-                  Owner: !Ref GitHubOwner
-                  Repo: !Ref GitHubRepo
-                  Branch: !Ref GitHubBranch
-                  PollForSourceChanges: false
-                  OAuthToken: !Ref GitHubOAuthToken
-                RunOrder: 1
-            - Name: Build
-                Actions:
-                  - Name: CodeBuild
-                    ActionTypeId:
-                      Category: Build
-                      Owner: AWS
-                      Provider: CodeBuild
-                      Version: 1
-                    Configuration:
-                      ProjectName: !Ref CodeBuildProject
-                    InputArtifacts:
-                      - Name: SourceZipDev
-                    OutputArtifacts:
-                      - Name: BuiltZipDev
-              - Name: Deploy-DEV
-                Actions:
-                  - Name: CreateChangeSet
-                    ActionTypeId:
-                      Category: Deploy
-                      Owner: AWS
-                      Provider: CloudFormation
-                      Version: 1
-                    Configuration:
-                      ActionMode: CHANGE_SET_REPLACE
-                      RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                      StackName: !Sub '${ProjectName}-dev'
-                      ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
-                      TemplatePath: BuiltZipDev::serverless.yml
-                      Capabilities: CAPABILITY_IAM
-                      ParameterOverrides: '{ "Environment": "dev" }'
-                    InputArtifacts:
-                      - Name: BuiltZipDev
-                    RunOrder: 1
-                  - Name: ExecuteChangeSet
-                    ActionTypeId:
-                      Category: Deploy
-                      Owner: AWS
-                      Provider: CloudFormation
-                      Version: 1
-                    Configuration:
-                      ActionMode: CHANGE_SET_EXECUTE
-                      RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                      StackName: !Sub '${ProjectName}-dev'
-                      ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
-                    OutputArtifacts:
-                      - Name: !Sub '${ProjectName}DevChangeSet'
-                    RunOrder: 2
+              InputArtifacts: []
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: SourceZipDev
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                PollForSourceChanges: false
+                OAuthToken: !Ref GitHubOAuthToken
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceZipDev
+              OutputArtifacts:
+                - Name: BuiltZipDev
+        - Name: ServerlessDeploy-DEV
+          Actions:
+            - Name: DeployToDev
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: !Ref CodeBuildDeploy
+              InputArtifacts:
+                - Name: BuiltZipDev
 
-
-Outputs:
-  Git:
-    Description: The URL to use for cloning the repository over HTTPS
-    Value: !GetAtt CodeRepository.CloneUrlHttp
+      # 'GithubWebhook' satisfies two requirements:
+  # -- Means that updates are pushed from GitHub, rather than AWS having to poll
+  # -- Means we can filter for required changes
+  GithubWebhook:
+    Type: "AWS::CodePipeline::Webhook"
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubOAuthToken
+      RegisterWithThirdParty: "true"
+      Filters:
+        - JsonPath: "$.ref"
+          MatchEquals: refs/heads/{Branch}
+      TargetPipeline: !Ref CodePipelineDev
+      TargetAction: Source
+      TargetPipelineVersion: !GetAtt CodePipelineDev.Version
