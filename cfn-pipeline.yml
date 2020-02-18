@@ -267,11 +267,8 @@ Resources:
             Value: dev
       ServiceRole: !GetAtt CodeDeployServiceRole.Arn
       Source:
-        Auth:
-          Type: OAUTH
-        Location: https://github.com/Nickadiemus/zillow-webscraper
-        BuildSpec: deploy.sh
-        Type: GITHUB
+        Type: S3
+        Location: !Ref BuildArtifactsBucket
       Triggers:
         Webhook: true
       TimeoutInMinutes: 10
