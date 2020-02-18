@@ -1,4 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
+
+Description: zillow-webscraper
+
 Parameters:
     ProjectName:
         Type: String
@@ -13,7 +16,60 @@ Parameters:
         Default: zillow-webscraper-build-artifacts
         Description: S3 Bucket used for storing code artifacts.
 
+    # *** This value must always be passed in when creating / updating stack
+    # "NoEcho" is set to true, for security, so token won't be visible when examining the resulting stack
+    GitHubOAuthToken:
+      Type: String
+      NoEcho: true
+      MinLength: 40
+      MaxLength: 40
+      AllowedPattern: '[a-z0-9]*'
+
+    # *** The remaining parameters should either be:
+    # - overridden via changing "Default" here (PREFERABLE, since then they're in source control)
+    # - or you can pass them in when creating / updating the stack
+    
+    # *** The owner of the Github repo for this application.
+    GitHubOwner:
+      Type: String
+      Default: nickadiemus
+      AllowedPattern: "[A-Za-z0-9-]+"
+
+    GitHubRepo:
+      Type: String
+      Default: zillow-webscraper
+      AllowedPattern: "[A-Za-z0-9-]+"
+
+    GitHubBranch:
+      Type: String
+      Default: dev
+      AllowedPattern: "[A-Za-z0-9-]+"
+
 Resources:
+    # Code Commit Repo
+    CodeRepository:
+        Type: AWS::CodeCommit::Repository
+        Properties:
+            RepositoryName: !Sub "${ProjectName}"
+            RepositoryDescription: !Sub "Repository for the ${ProjectName} project"
+
+    # 'GithubWebhook' satisfies two requirements:
+    # -- Means that updates are pushed from GitHub, rather than AWS having to poll
+    # -- Means we can filter for required changes
+    GithubWebhook:
+      Type: 'AWS::CodePipeline::Webhook'
+      Properties:
+        Authentication: GITHUB_HMAC
+        AuthenticationConfiguration:
+          SecretToken: !Ref GitHubOAuthToken
+        RegisterWithThirdParty: 'true'
+        Filters:
+        - JsonPath: "$.ref"
+          MatchEquals: refs/heads/{Branch}
+        TargetPipeline: !Ref CodePipeline
+        TargetAction: Source
+        TargetPipelineVersion: !GetAtt CodePipeline.Version
+
     CodeBuildServiceRole:
         Type: AWS::IAM::Role
         Properties:
@@ -69,6 +125,7 @@ Resources:
             Auth:
               Type: OAUTH
             Location: https://github.com/Nickadiemus/zillow-webscraper
+            BuildSpec: buildspec.yml
             Type: GITHUB
           Triggers:
               Webhook: true
@@ -148,78 +205,83 @@ Resources:
                             - !Sub 'arn:aws:s3:::${BuildArtifactsBucket}/*'
                             - !Sub 'arn:aws:s3:::${DeploymentBucket}/*'
     
-    PipelineDEV:
-      Type: AWS::CodePipeline::Pipeline
-      Properties:
-          ArtifactStore: 
-              Location: !Ref BuildArtifactsBucket
-              Type: S3
-          Name: !Sub ${ProjectName}-pipeline-dev
-          RoleArn: !GetAtt PipelineExecutionRole.Arn
-          Stages:
+    CodePipelineDev:
+        Type: AWS::CodePipeline::Pipeline
+        Properties:
+            ArtifactStore:
+                Type: S3
+                Location: !Sub BuildArtifactsBucket
+            RestartExecutionOnUpdate: true
+            RoleArn: !GetAtt CodePipelineRole.Arn
+            Stages:
+            - Name: Source
+              Actions:
               - Name: Source
-                Actions:
-                  - Name: CodeCommitRepo
-                    ActionTypeId:
-                      Category: Source
-                      Owner: AWS
-                      Provider: CodeCommit
-                      Version: 1
-                    Configuration:
-                      RepositoryName: !Sub '${ProjectName}'
-                      BranchName: dev
-                    OutputArtifacts:
-                      - Name: SourceZipDev
-                    RunOrder: 1
+                InputArtifacts: []
+                ActionTypeId:
+                  Category: Source
+                  Owner: ThirdParty
+                  Version: 1
+                  Provider: GitHub
+                OutputArtifacts:
+                - Name: SourceCode
+                Configuration:
+                  Owner: !Ref GitHubOwner
+                  Repo: !Ref GitHubRepo
+                  Branch: !Ref GitHubBranch
+                  PollForSourceChanges: false
+                  OAuthToken: !Ref GitHubOAuthToken
+                RunOrder: 1
               - Name: Build
-                Actions:
-                  - Name: CodeBuild
-                    ActionTypeId:
-                      Category: Build
-                      Owner: AWS
-                      Provider: CodeBuild
-                      Version: 1
-                    Configuration:
-                      ProjectName: !Ref CodeBuildProject
-                    InputArtifacts:
-                      - Name: SourceZipDev
-                    OutputArtifacts:
-                      - Name: BuiltZipDev
-              - Name: Deploy-DEV
-                Actions:
-                  - Name: CreateChangeSet
-                    ActionTypeId:
-                      Category: Deploy
-                      Owner: AWS
-                      Provider: CloudFormation
-                      Version: 1
-                    Configuration:
-                      ActionMode: CHANGE_SET_REPLACE
-                      RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                      StackName: !Sub '${ProjectName}-dev'
-                      ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
-                      TemplatePath: BuiltZipDev::serverless.yml
-                      Capabilities: CAPABILITY_IAM
-                      ParameterOverrides: '{ "Environment": "dev" }'
-                    InputArtifacts:
-                      - Name: BuiltZipDev
-                    RunOrder: 1
-                  - Name: ExecuteChangeSet
-                    ActionTypeId:
-                      Category: Deploy
-                      Owner: AWS
-                      Provider: CloudFormation
-                      Version: 1
-                    Configuration:
-                      ActionMode: CHANGE_SET_EXECUTE
-                      RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                      StackName: !Sub '${ProjectName}-dev'
-                      ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
-                    OutputArtifacts:
-                      - Name: !Sub '${ProjectName}DevChangeSet'
-                    RunOrder: 2
+                  Actions:
+                    - Name: CodeBuild
+                      ActionTypeId:
+                        Category: Build
+                        Owner: AWS
+                        Provider: CodeBuild
+                        Version: 1
+                      Configuration:
+                        ProjectName: !Ref CodeBuildProject
+                      InputArtifacts:
+                        - Name: SourceZipDev
+                      OutputArtifacts:
+                        - Name: BuiltZipDev
+                - Name: Deploy-DEV
+                  Actions:
+                    - Name: CreateChangeSet
+                      ActionTypeId:
+                        Category: Deploy
+                        Owner: AWS
+                        Provider: CloudFormation
+                        Version: 1
+                      Configuration:
+                        ActionMode: CHANGE_SET_REPLACE
+                        RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+                        StackName: !Sub '${ProjectName}-dev'
+                        ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
+                        TemplatePath: BuiltZipDev::serverless.yml
+                        Capabilities: CAPABILITY_IAM
+                        ParameterOverrides: '{ "Environment": "dev" }'
+                      InputArtifacts:
+                        - Name: BuiltZipDev
+                      RunOrder: 1
+                    - Name: ExecuteChangeSet
+                      ActionTypeId:
+                        Category: Deploy
+                        Owner: AWS
+                        Provider: CloudFormation
+                        Version: 1
+                      Configuration:
+                        ActionMode: CHANGE_SET_EXECUTE
+                        RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+                        StackName: !Sub '${ProjectName}-dev'
+                        ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
+                      OutputArtifacts:
+                        - Name: !Sub '${ProjectName}DevChangeSet'
+                      RunOrder: 2
+
 
 Outputs:
   Git:
     Description: The URL to use for cloning the repository over HTTPS
-    Value: https://github.com/Nickadiemus/zillow-webscraper
+    Value: !GetAtt CodeRepository.CloneUrlHttp
