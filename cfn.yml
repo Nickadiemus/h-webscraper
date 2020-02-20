@@ -12,59 +12,50 @@ Parameters:
     Default: zillow-webscraper-build-artifacts
     Description: S3 Bucket used for storing code artifacts.
 Resources:
-  # MyLambdaRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - lambda.amazonaws.com
-  #           Action:
-  #             - sts:AssumeRole
+  MyLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
 
-  # MyLambdaPolicy:
-  #   Type: AWS::IAM::Policy
-  #   Properties:
-  #     PolicyName: MyLambdaPolicy
-  #     PolicyDocument:
-  #       Version: "2012-10-17"
-  #       Statement:
-  #         - Effect: Allow
-  #           Action:
-  #           - logs:CreateLogGroup
-  #           - logs:CreateLogStream
-  #           - logs:PutLogEvents
-  #           Resource: arn:aws:logs:*:*:*
-  #         - Effect: Allow
-  #           Action:
-  #             - s3:CreateBucket
-  #               - s3:GetBucketPolicy
-  #               - s3:GetObject
-  #               - s3:ListAllMyBuckets
-  #               - s3:ListBucket
-  #               - s3:PutBucketPolicy
-  #           Resource:ww
-  #             - arn:aws:s3:::zillow-webscraper
-  #             - arn:aws:s3:::zillow-webscraper/*
-  #     Roles:
-  #       - Ref: MyLambdaRole
+  MyLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: MyLambdaPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:GetBucketPolicy
+              - s3:GetObject
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:PutBucketPolicy
+            Resource:
+              - arn:aws:s3:::zillow-webscraper
+              - arn:aws:s3:::zillow-webscraper/*
+      Roles:
+        - Ref: MyLambdaRole
   
   HelloWorld:
     Type: AWS::Serverless::Function
-    # DependsOn: MyLambdaPolicy
+    DependsOn: MyLambdaPolicy
     Properties:
       CodeUri: ./build
       Handler: handler.hello
       Runtime: python3.8
-      # Role: !GetAtt MyLambdaRole.Arn
-    
-Outputs:
-    HelloWorldFunction:
-      Description: "Hello World Lambda Function ARN"
-      Value: !GetAtt HelloWorldFunction.Arn
-
-    HelloWorldFunctionIamRole:
-      Description: "Implicit IAM Role created for Hello World function"
-      Value: !GetAtt HelloWorldFunctionRole.Arn
+      Role: !GetAtt MyLambdaRole.Arn
