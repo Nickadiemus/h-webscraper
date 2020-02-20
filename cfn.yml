@@ -3,18 +3,18 @@ Transform: AWS::Serverless-2016-10-31
 Description: Sets up the serverless function for zillow-webscraper
 
 Parameters:
-  BucketName:
-    Type: String
-  CodeKey:
-    Type: String  
-  DeploymentBucket:
-    Type: String
-    Default: zillow-webscraper
-    Description: Bucket where the files will be deployed.
-  BuildArtifactsBucket:
-    Type: String
-    Default: zillow-webscraper-build-artifacts
-    Description: S3 Bucket used for storing code artifacts.
+  # BucketName:
+  #   Type: String
+  # CodeKey:
+  #   Type: String  
+  # DeploymentBucket:
+  #   Type: String
+  #   Default: zillow-webscraper
+  #   Description: Bucket where the files will be deployed.
+  # BuildArtifactsBucket:
+  #   Type: String
+  #   Default: zillow-webscraper-build-artifacts
+  #   Description: S3 Bucket used for storing code artifacts.
 Resources:
   # MyLambdaRole:
   #   Type: AWS::IAM::Role
@@ -43,7 +43,12 @@ Resources:
   #           Resource: arn:aws:logs:*:*:*
   #         - Effect: Allow
   #           Action:
-  #             - s3:GetObject
+  #             - s3:CreateBucket
+  #               - s3:GetBucketPolicy
+  #               - s3:GetObject
+  #               - s3:ListAllMyBuckets
+  #               - s3:ListBucket
+  #               - s3:PutBucketPolicy
   #           Resource:ww
   #             - arn:aws:s3:::zillow-webscraper
   #             - arn:aws:s3:::zillow-webscraper/*
@@ -54,9 +59,7 @@ Resources:
     Type: AWS::Serverless::Function
     # DependsOn: MyLambdaPolicy
     Properties:
-      CodeUri: 
-        Bucket: !Ref BucketName
-        Key: !Ref CodeKey
+      CodeUri: ./build
       Handler: handler.hello
       Runtime: python3.8
       # Role: !GetAtt MyLambdaRole.Arn
