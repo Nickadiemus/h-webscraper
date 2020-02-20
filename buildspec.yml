@@ -1,20 +1,26 @@
 version: 0.2
 
+env:
+  variables:
+    APPNAME: ""
+    BUILD_OUTPUT_BUCKET: ""
+    ENVIRONMENT: ""
+    REGION: ""
+
 phases:
   install:
-    commands:
-      - npm install -g --silent --no-progress npm
-      - npm install -g --silent --no-progress serverless
+    runtime-versions:
+        python: 3.8
   pre_build:
     commands:
-      - pip install -r $PWD/requirements.txt
+      - pip install --upgrade pip
   build:
     commands:
-      - mkdir -p target/dev
-      - serverless package --package target/dev --stage dev -v -r us-east-1
+      - pip install -r $PWD/requirements.txt
+      - aws cloudformation package --template-file cfn.yml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file cfn-$ENVIRONMENT.yml
     
 artifacts:
+  type: zip
   files:
-    - target/**/*
-    - serverless.yml
-    - deploy.sh
+    - cfn.yml
+    - cfn-$ENVIRONMENT.yml
