@@ -40,13 +40,10 @@ Resources:
             Resource: arn:aws:logs:*:*:*
           - Effect: Allow
             Action:
-              - s3:Get*
-              - s3:List*
+              - s3:*
             Resource:
               - arn:aws:s3:::zillow-webscraper
               - arn:aws:s3:::zillow-webscraper/*
-              - arn:aws:s3:::zillow-webscraper-build-artifacts
-              - arn:aws:s3:::zillow-webscraper-build-artifacts/*
       Roles:
         - Ref: MyLambdaRole
   
