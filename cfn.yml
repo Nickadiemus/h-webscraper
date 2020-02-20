@@ -12,6 +12,16 @@ Parameters:
     Default: zillow-webscraper-build-artifacts
     Description: S3 Bucket used for storing code artifacts.
 Resources:
+
+  HelloWorld:
+    Type: AWS::Serverless::Function
+    DependsOn: MyLambdaPolicy
+    Properties:
+      CodeUri: ./build
+      Handler: handler.hello
+      Runtime: python3.8
+      Role: !GetAtt MyLambdaRole.Arn
+
   MyLambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -50,12 +60,4 @@ Resources:
               - arn:aws:s3:::zillow-webscraper/*
       Roles:
         - Ref: MyLambdaRole
-  
-  HelloWorld:
-    Type: AWS::Serverless::Function
-    DependsOn: MyLambdaPolicy
-    Properties:
-      CodeUri: ./build
-      Handler: handler.hello
-      Runtime: python3.8
-      Role: !GetAtt MyLambdaRole.Arn
+

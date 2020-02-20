@@ -136,10 +136,13 @@ Resources:
                 Effect: Allow
                 Resource: "*"
               - Action:
-                  - "s3:GetObject"
+                  - s3:GetObject
                 Effect: Allow
                 Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}"
+                  - !Sub "arn:aws:s3:::${DeploymentBucket}"
                   - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
+                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
 
     # CodePipeline definition and role
 
