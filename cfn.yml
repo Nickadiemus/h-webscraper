@@ -1,13 +1,71 @@
-AWSTemplateFormatVersion: '2010-09-09'
-
+AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Description: Sets up the serverless function for zillow-webscraper
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: zillow-webscraper
+    Description: Name for the project, used in the code repository.
+  DeploymentBucket:
+    Type: String
+    Default: zillow-webscraper
+    Description: Bucket where the files will be deployed.
+  BuildArtifactsBucket:
+    Type: String
+    Default: zillow-webscraper-build-artifacts
+    Description: S3 Bucket used for storing code artifacts.
+
 Resources:
-  helloworlddev:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: handler.handler
-      Runtime: python3.8
-      CodeUri: ./
-      Policies: 
-        - S3FullAccessPolicy
+    HelloWorld:
+      Type: AWS::Serverless::Function
+      Properties:
+        Handler: handler.handler
+        Runtime: python3.8
+        CodeUri: ./
+        Role: !Ref MyLambdaRole.Arn
+    
+    MyLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+            - sts:AssumeRole
+    MyLambdaPolicy:
+        Type: AWS::IAM::Policy
+        Properties:
+          PolicyName: MyLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            
+            - Effect: Allow
+              Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Resource: arn:aws:logs:*:*:*
+
+            - Action:
+              - s3:Get*
+              - s3:List*
+              Effect: Allow
+              Resource: !Ref DeploymentBucket
+            
+            - Effect: Allow
+              Action:
+              - es:*
+              Resource:
+              - "*"
+            - Effect: Allow
+              Action:
+              - cloudwatch:PutMetricData
+              Resource:
+              - "*"
+          Roles:
+          - Ref: MyLambdaRole
