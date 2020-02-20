@@ -17,13 +17,6 @@ Parameters:
     Description: S3 Bucket used for storing code artifacts.
 
 Resources:
-    HelloWorld:
-      Type: AWS::Serverless::Function
-      Properties:
-        Handler: handler.handler
-        Runtime: python3.8
-        CodeUri: ./
-        Role: !Ref MyLambdaRole.Arn
     
     MyLambdaRole:
       Type: AWS::IAM::Role
@@ -69,3 +62,10 @@ Resources:
               - "*"
           Roles:
           - Ref: MyLambdaRole
+    HelloWorld:
+      Type: AWS::Serverless::Function
+      Properties:
+        Handler: handler.handler
+        Runtime: python3.8
+        CodeUri: ./
+        Role: !GetAtt MyLambdaRole.Arn
