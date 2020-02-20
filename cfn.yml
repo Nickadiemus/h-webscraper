@@ -17,51 +17,41 @@ Parameters:
     Description: S3 Bucket used for storing code artifacts.
 
 Resources:
-    
-    MyLambdaRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
+  MyLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
           - Effect: Allow
             Principal:
               Service:
-              - lambda.amazonaws.com
+                - lambda.amazonaws.com
             Action:
-            - sts:AssumeRole
-    MyLambdaPolicy:
-        Type: AWS::IAM::Policy
-        Properties:
-          PolicyName: MyLambdaPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-            - Effect: Allow
-              Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-              Resource: arn:aws:logs:*:*:*
-            - Effect: Allow
-              Allow:
-                - s3:Get*
-                - s3:List*
-              Resource:
+              - sts:AssumeRole
+
+  MyLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: MyLambdaPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Allow:
+              - s3:Get*
+              - s3:List*
+            Resource:
               - arn:aws:s3:::zillow-webscraper
               - arn:aws:s3:::zillow-webscraper/*
               - arn:aws:s3:::zillow-webscraper-build-artifacts
               - arn:aws:s3:::zillow-webscraper-build-artifacts/*
-            - Effect: Allow
-              Action:
-              - cloudwatch:PutMetricData
-              Resource:
-              - "*"
-          Roles:
-          - Ref: MyLambdaRole
-    HelloWorld:
-      Type: AWS::Serverless::Function
-      Properties:
-        Handler: handler.handler
-        Runtime: python3.8
-        CodeUri: ./
-        Role: !GetAtt MyLambdaRole.Arn
+      Roles:
+        - Ref: MyLambdaRole
+  
+  HelloWorld:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      Runtime: python3.8
+      CodeUri: !Ref DeploymentBucket
+      Role: !GetAtt MyLambdaRole.Arn
