@@ -39,7 +39,7 @@ Resources:
             - logs:PutLogEvents
             Resource: arn:aws:logs:*:*:*
           - Effect: Allow
-            Allow:
+            Action:
               - s3:Get*
               - s3:List*
             Resource:
