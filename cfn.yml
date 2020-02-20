@@ -51,12 +51,10 @@ Resources:
         - Ref: MyLambdaRole
   
   HelloWorld:
-    Type: AWS::Lambda::Function
+    Type: AWS::Serverless::Function
     DependsOn: MyLambdaPolicy
     Properties:
-      Code: 
-        S3Bucket: arn:aws:s3:::zillow-webscraper
-      Handler:
-        Ref: handler.hello
+      CodeUri: build/
+      Handler: handler.hello
       Runtime: python3.8
       Role: !GetAtt MyLambdaRole.Arn

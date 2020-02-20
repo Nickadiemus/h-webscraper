@@ -16,11 +16,14 @@ phases:
       - pip install --upgrade pip
   build:
     commands:
-      - pip install -r $PWD/requirements.txt
+      - pip install -r $PWD/requirements.txt --no-deps -t build/
+      - cp ./*.py build/
+      - echo "Starting SAM packaging `date` in `pwd`"
       - aws cloudformation package --template-file cfn.yml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file cfn-$ENVIRONMENT.yml
-    
+  post_build:
+    commands:
+      - echo "SAM packaging completed on `date`"
 artifacts:
-  type: zip
   files:
-    - cfn.yml
     - cfn-$ENVIRONMENT.yml
+  discard-paths: yes
