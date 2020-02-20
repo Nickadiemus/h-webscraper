@@ -22,10 +22,8 @@ phases:
       - aws cloudformation package --template-file cfn.yml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file cfn-$ENVIRONMENT.yml
   post_build:
     commands:
-      - aws s3 cp $PWD/vendor.zip s3://$BUILD_OUTPUT_BUCKET/lambda/$APPNAME-$ENVIRONMENT-$CODEBUILD_START_TIME.zip
-    
+      - echo "SAM packaging completed on `date`"
 artifacts:
-  type: zip
   files:
-    - cfn.yml
     - cfn-$ENVIRONMENT.yml
+  discard-paths: yes
