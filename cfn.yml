@@ -54,7 +54,8 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: MyLambdaPolicy
     Properties:
-      Code: arn:aws:s3:::zillow-webscraper
+      Code: 
+        S3Bucket: arn:aws:s3:::zillow-webscraper
       Handler:
         Ref: handler.handler
       Runtime: python3.8
