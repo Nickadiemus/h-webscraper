@@ -3,18 +3,14 @@ Transform: AWS::Serverless-2016-10-31
 Description: Sets up the serverless function for zillow-webscraper
 
 Parameters:
-  # BucketName:
-  #   Type: String
-  # CodeKey:
-  #   Type: String  
-  # DeploymentBucket:
-  #   Type: String
-  #   Default: zillow-webscraper
-  #   Description: Bucket where the files will be deployed.
-  # BuildArtifactsBucket:
-  #   Type: String
-  #   Default: zillow-webscraper-build-artifacts
-  #   Description: S3 Bucket used for storing code artifacts.
+  DeploymentBucket:
+    Type: String
+    Default: zillow-webscraper
+    Description: Bucket where the files will be deployed.
+  BuildArtifactsBucket:
+    Type: String
+    Default: zillow-webscraper-build-artifacts
+    Description: S3 Bucket used for storing code artifacts.
 Resources:
   # MyLambdaRole:
   #   Type: AWS::IAM::Role
