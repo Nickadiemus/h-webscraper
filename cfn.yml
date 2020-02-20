@@ -44,17 +44,15 @@ Resources:
               - logs:PutLogEvents
               Resource: arn:aws:logs:*:*:*
 
-            - Action:
-              - s3:Get*
-              - s3:List*
-              Effect: Allow
-              Resource: !Ref DeploymentBucket
-            
-            - Effect: Allow
-              Action:
-              - es:*
+            - Effect: 
+              Allow:
+                - s3:Get*
+                - s3:List*
               Resource:
-              - "*"
+              - arn:aws:s3:::zillow-webscraper
+              - arn:aws:s3:::zillow-webscraper/*
+              - arn:aws:s3:::zillow-webscraper-build-artifacts
+              - arn:aws:s3:::zillow-webscraper-build-artifacts/*
             - Effect: Allow
               Action:
               - cloudwatch:PutMetricData
