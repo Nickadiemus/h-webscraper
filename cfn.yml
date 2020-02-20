@@ -3,10 +3,6 @@ Transform: AWS::Serverless-2016-10-31
 Description: Sets up the serverless function for zillow-webscraper
 
 Parameters:
-  ProjectName:
-    Type: String
-    Default: zillow-webscraper
-    Description: Name for the project, used in the code repository.
   DeploymentBucket:
     Type: String
     Default: zillow-webscraper
@@ -37,6 +33,12 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
             Allow:
               - s3:Get*
               - s3:List*
@@ -49,9 +51,11 @@ Resources:
         - Ref: MyLambdaRole
   
   HelloWorld:
-    Type: AWS::Serverless::Function
+    Type: AWS::Lambda::Function
+    DependsOn: MyLambdaPolicy
     Properties:
-      Handler: handler.handler
+      Code: arn:aws:s3:::zillow-webscraper
+      Handler:
+        Ref: handler.handler
       Runtime: python3.8
-      CodeUri: !Ref DeploymentBucket
       Role: !GetAtt MyLambdaRole.Arn
