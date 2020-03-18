@@ -2,7 +2,7 @@
 set -x 
 BUILDPATH="target"
 CODEBUILD_SRC_DIR="."
-APPNAME="$1"
+APPNAME="h-webscraper"
 
 # install deps
 pip install -r requirements.txt -t $CODEBUILD_SRC_DIR/$BUILDPATH
