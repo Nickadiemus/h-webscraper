@@ -10,7 +10,7 @@ Parameters:
     
   BuildArtifactsBucket:
     Type: String
-    Default: build-artifcats-us-east-1
+    Default: h-webscraper-build-artifacts-us-east-1
     Description: S3 Bucket used for storing code artifacts.
 
   GitHubOAuthToken:
