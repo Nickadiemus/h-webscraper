@@ -22,7 +22,7 @@ phases:
   post_build:
     commands:
       - echo "Copying packages completed on `date`"
-      - aws s3 cp $PWD/*.zip s3://$BUILD_OUTPUT_BUCKET/lambda/$APPNAME/$ENVIRONMENT/$APPNAME-$ENVIRONMENT-$CODEBUILD_START_TIME.zip
+      - aws s3 cp $$CODEBUILD_SRC_DIR/$APPNAME.zip s3://$BUILD_OUTPUT_BUCKET/lambda/$APPNAME/$ENVIRONMENT/$APPNAME-$ENVIRONMENT-$CODEBUILD_START_TIME.zip
       - sed "s/\${BuildId}/${CODEBUILD_START_TIME}/g" cfn-param-$ENVIRONMENT-$REGION.json > ./cfn-params.json
 artifacts:
   files:
