@@ -16,14 +16,16 @@ phases:
       - pip install --upgrade pip
   build:
     commands:
-      - pip install -r $PWD/requirements.txt --no-deps -t build/
-      - cp ./*.py build/
-      - echo "Starting SAM packaging `date` in `pwd`"
-      - aws cloudformation package --template-file cfn.yml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file cfn-$ENVIRONMENT.yml
+      - echo "Starting packaging `date` in `pwd`"
+      - sh package.sh $APPNAME
+      
   post_build:
     commands:
-      - echo "SAM packaging completed on `date`"
+      - echo "Copying packages completed on `date`"
+      - aws s3 cp $PWD/*.zip s3://$BUILD_OUTPUT_BUCKET/lambda/$APPNAME/ENVIRONMENT/$APPNAME-$ENVIRONMENT-$CODEBUILD_START_TIME.zip
+      - sed "s/\${BuildId}/${CODEBUILD_START_TIME}/g" cfn-param-$ENVIRONMENT-$REGION.json > ./cfn-params.json
 artifacts:
   files:
-    - cfn-$ENVIRONMENT.yml
+    - cfn.yml
+    - cfn-params.json
   discard-paths: yes

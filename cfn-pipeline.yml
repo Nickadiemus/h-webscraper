@@ -5,19 +5,14 @@ Description: zillow-webscraper
 Parameters:
   ProjectName:
     Type: String
-    Default: zillow-webscraper
+    Default: h-webscraper
     Description: Name for the project, used in the code repository.
-  DeploymentBucket:
-    Type: String
-    Default: zillow-webscraper
-    Description: Bucket where the files will be deployed.
+    
   BuildArtifactsBucket:
     Type: String
-    Default: zillow-webscraper-build-artifacts
+    Default: build-artifcats-us-east-1
     Description: S3 Bucket used for storing code artifacts.
 
-  # *** This value must always be passed in when creating / updating stack
-  # "NoEcho" is set to true, for security, so token won't be visible when examining the resulting stack
   GitHubOAuthToken:
     Type: String
     NoEcho: true
@@ -32,7 +27,7 @@ Parameters:
 
   GitHubRepo:
     Type: String
-    Default: zillow-webscraper
+    Default: h-webscraper
     AllowedPattern: "[A-Za-z0-9-]+"
 
   GitHubBranch:
@@ -41,12 +36,6 @@ Parameters:
     AllowedPattern: "[A-Za-z0-9-]+"
 
 Resources:
-  # Code Commit Repo
-  CodeRepository:
-    Type: AWS::CodeCommit::Repository
-    Properties:
-      RepositoryName: !Sub "${ProjectName}"
-      RepositoryDescription: !Sub "Repository for the ${ProjectName} project"
 
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
@@ -77,11 +66,11 @@ Resources:
               - Effect: Allow
                 Resource:
                   - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
-                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
                 Action:
                   - "s3:GetObject"
                   - "s3:GetObjectVersion"
                   - "s3:PutObject"
+                  
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -89,24 +78,29 @@ Resources:
       Name: !Sub "${ProjectName}-build"
       Description: Build project for the s3 static content deployment
       Artifacts:
-        Location: !Ref BuildArtifactsBucket
-        Type: S3
+        Type: CODEPIPELINE
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/nodejs:8.11.0
         EnvironmentVariables:
+          - Name: APPNAME
+            Value: !Ref ProjectName
+          - Name: REGION
+            Value: !Ref "AWS::Region"
           - Name: BUILD_OUTPUT_BUCKET
             Value: !Ref BuildArtifactsBucket
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      # Source:
+      #   Auth:
+      #     Type: OAUTH
+      #   Location: https://github.com/Nickadiemus/zillow-webscraper
+      #   BuildSpec: buildspec.yml
+      #   Type: GITHUB
+      # Triggers:
+      #   Webhook: true
       Source:
-        Auth:
-          Type: OAUTH
-        Location: https://github.com/Nickadiemus/zillow-webscraper
-        BuildSpec: buildspec.yml
-        Type: GITHUB
-      Triggers:
-        Webhook: true
+        Type: CODEPIPELINE
       TimeoutInMinutes: 10
 
   # CloudFormation role
@@ -136,9 +130,10 @@ Resources:
                 Effect: Allow
                 Resource: "*"
               - Action:
-                  - "s3:GetObject"
+                  - s3:GetObject
                 Effect: Allow
                 Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}"
                   - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
 
     # CodePipeline definition and role
@@ -187,7 +182,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
-                  - !Sub "arn:aws:s3:::${DeploymentBucket}/*"
 
   CodePipelineDev:
     Type: AWS::CodePipeline::Pipeline
@@ -226,11 +220,11 @@ Resources:
                 Version: 1
               Configuration:
                 ProjectName: !Ref CodeBuildProject
-                EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"dev"}, {"name":"BUILD_OUTPUT_BUCKET","value":"${DeploymentBucket}"}]'
+                EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"dev"}]'
               InputArtifacts:
                 - Name: SourceZip
               OutputArtifacts:
-                - Name: BuiltZipDev
+                - Name: BuildZip
               # Build and Deploy, etc., stages would follow. Here is an example
         - Name: DeployDEV
           Actions:
@@ -241,14 +235,15 @@ Resources:
               Provider: CloudFormation
               Version: '1'
             InputArtifacts:
-              - Name: BuiltZipDev
+              - Name: BuildZip
             Configuration:
               ActionMode: CHANGE_SET_REPLACE
               Capabilities: CAPABILITY_IAM
               RoleArn: !GetAtt CloudFormationExecutionRole.Arn    
               StackName: !Sub ${ProjectName}-dev
               ChangeSetName: !Sub '${ProjectName}-ChangeSet-dev'
-              TemplatePath: !Sub "BuiltZipDev::cfn-dev.yml"     #dev needs to be replaced with a ENV VAR
+              TemplatePath: !Sub "BuildZip::cfn.yml"
+              TemplateConfiguration: !Sub "BuildZip::cfn-params.yml"
             RunOrder: 1
           - Name: ExecuteChangeSet
             ActionTypeId:
