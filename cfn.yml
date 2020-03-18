@@ -1,27 +1,65 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: Sets up the serverless function for zillow-webscraper
-
+Description: lambda function for h-scraper
 Parameters:
-  DeploymentBucket:
+  ApplicationName:
     Type: String
-    Default: zillow-webscraper
-    Description: Bucket where the files will be deployed.
-  BuildArtifactsBucket:
+    Default: h-scraper
+    Description: Name of the lambda function
+  Environment:
     Type: String
-    Default: zillow-webscraper-build-artifacts
-    Description: S3 Bucket used for storing code artifacts.
+    Description: Environment tag that helps build the Environment
+  S3BucketName:
+    Type: String
+    Description: Bucket where the source code is located
+  BuildId:
+    Type: Number
+    Description: BuildId from the codebuild end run-time environment variable
+  LambdaHandler:
+    Description: The Python handler for the Lambda function
+    Type: String
+    Default: handler.hello
+  LambdaMemorySize:
+    Description: Memory size for the lambda function
+    Type: Number
+    Default: 256
+  LambdaTimeout:
+    Description: Timeout length for the lambda function
+    Type: Number
+    Default: 900
 Resources:
-
-  HelloWorld:
-    Type: AWS::Serverless::Function
+  MyLambdaFunction:
+    Type: AWS::Lambda::Function
     DependsOn: MyLambdaPolicy
     Properties:
-      CodeUri: ./build
-      Handler: handler.hello
-      Runtime: python3.8
-      Role: !GetAtt MyLambdaRole.Arn
-
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key:
+          Fn::Join:
+            - ""
+            - - "lambda/"
+              - !Ref ApplicationName
+              - "/"
+              - !Ref Environment
+              - "/"
+              - !Ref ApplicationName
+              - "-"
+              - !Ref Environment
+              - "-"
+              - !Ref BuildId
+              - ".zip"
+      Handler:
+        Ref: LambdaHandler
+      MemorySize:
+        Ref: LambdaMemorySize
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt:
+          - MyLambdaRole
+          - Arn
+      Timeout:
+        Ref: LambdaTimeout
+        
   MyLambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -33,7 +71,6 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
-
   MyLambdaPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -43,9 +80,9 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
             Resource: arn:aws:logs:*:*:*
           - Effect: Allow
             Action:
@@ -56,8 +93,7 @@ Resources:
               - s3:ListBucket
               - s3:PutBucketPolicy
             Resource:
-              - arn:aws:s3:::zillow-webscraper
-              - arn:aws:s3:::zillow-webscraper/*
+              - !Sub arn:aws:s3:::${S3BucketName}
+              - !Sub arn:aws:s3:::${S3BucketName}/*
       Roles:
         - Ref: MyLambdaRole
-
