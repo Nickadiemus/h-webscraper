@@ -2,7 +2,7 @@
     "Parameters":{
         "BuildId": "${BuildId}",
 		"Environment": "dev",
-        "S3BucketName": "h-webscraper-build-artifcats-us-east-1"  
+        "S3BucketName": "h-webscraper-build-artifacts-us-east-1"  
     },
     "Tags": {
 		"Environment": "dev",
