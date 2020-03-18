@@ -1,0 +1,25 @@
+{
+    "Parameters":{
+        "BuildId": "${BuildId}",
+		"Environment": "dev",
+        "S3BucketName": "build-artifcats-us-east-1"  
+    },
+    "Tags": {
+		"Environment": "dev",
+		"GitRepo": "https://github.com/Nickadiemus/h-webscraper.git",
+		"Application": "Webscraper",
+		"DataClass": "Confidential",
+		"Compliance": "none",
+		"Function": "Business Intelligence",
+		"Owner": "nicholasgsladic@gmail.com"
+    },
+    "StackPolicy": {
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Resource": "*"
+            }
+        ]
+    }
+}
