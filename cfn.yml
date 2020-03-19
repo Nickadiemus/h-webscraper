@@ -4,7 +4,7 @@ Description: lambda function for h-scraper
 Parameters:
   ApplicationName:
     Type: String
-    Default: h-scraper
+    Default: h-webscraper
     Description: Name of the lambda function
   Environment:
     Type: String
