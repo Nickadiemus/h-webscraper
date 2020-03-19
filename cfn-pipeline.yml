@@ -181,6 +181,7 @@ Resources:
                   - "s3:*"
                 Effect: Allow
                 Resource:
+                  - !Sub "arn:aws:s3:::${BuildArtifactsBucket}"
                   - !Sub "arn:aws:s3:::${BuildArtifactsBucket}/*"
 
   CodePipelineDev:
