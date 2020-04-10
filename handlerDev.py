@@ -1,7 +1,12 @@
-from botocore.vendored import requests
-
+import requests
 import json
 import sys
+from bs4 import BeautifulSoup as bs
+import ssl
+
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
 
 def createHeaders():
     headers = {
@@ -10,7 +15,7 @@ def createHeaders():
         'accept-language': 'en-US,en;q=0.9',
         'cache-control': 'no-cache',
         'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'
+        'user-agent': 'Mozilla/5.0'
     }
 
     return headers
@@ -18,7 +23,7 @@ def createHeaders():
 def formatUri(areaCode):
     # Todo: change this to an environment var later on
     # hard coded for now
-    return "https://www.zillow.com/homes/" +str(areaCode) + "_rb"
+    return "https://www.zillow.com/homes/" +str(areaCode) + "_rb/"
 
 def makeGetRequest(areaCode):
     headers=createHeaders()
@@ -29,7 +34,6 @@ def makeGetRequest(areaCode):
     return resp.content
 
 def handler(event, context):
-    
 
     # check if trigger payload is not empty
     if len(event) == 0:
@@ -45,26 +49,22 @@ def handler(event, context):
         }
         return response
         
-    print(makeGetRequest(event['areaCode']))
+    html = makeGetRequest(event['areaCode'])
+    parsedHtml = bs(html, 'html.parser')
+    parentHouseListing = parsedHtml.find('ul', attrs={'class':'photo-cards_short'})
+    childrenHouseListing = parentHouseListing.findChildren("li", recursive=False)
+    for listing in childrenHouseListing:
+        for item in listing:
+            print("item", item)
+        return 
+    
 
     # make initial reqest to determine how many requests will need to be used 
 
+if __name__ == "__main__":
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    body = {"message": "Go Serverless v1.0! Your function executed successfully!","input": event}
-    response = {"statusCode": 200,"body": json.dumps(body)}
-    return response
-
-    # Use this code if you don't use the http event with the LAMBDA-PROXY
-    # integration
-
+    event = {
+        "areaCode": 40391
+    }
+    context={}
+    handler(event, context)

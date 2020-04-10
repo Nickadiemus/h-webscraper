@@ -18,7 +18,7 @@ Parameters:
   LambdaHandler:
     Description: The Python handler for the Lambda function
     Type: String
-    Default: handler.hello
+    Default: handler.handler
   LambdaMemorySize:
     Description: Memory size for the lambda function
     Type: Number
@@ -32,7 +32,7 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: MyLambdaPolicy
     Properties:
-      Code:
+      CodeUri:
         S3Bucket: !Ref S3BucketName
         S3Key:
           Fn::Join:

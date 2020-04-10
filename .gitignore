@@ -25,3 +25,6 @@ lib/
 
 # Serverless directories
 .serverless
+
+lib/
+lib64/
